@@ -13,6 +13,8 @@ import {
 	JustifyContentControl,
 } from '@wordpress/block-editor';
 
+import { useCallback } from '@wordpress/element';
+
 /**
  * Internal dependencies
  */
@@ -31,6 +33,11 @@ const HORIZONTAL_JUSTIFY_CONTROLS = [
 	'right',
 	'space-between',
 ];
+
+const POPOVER_PROPS = {
+	position: 'bottom right',
+	isAlternate: true,
+};
 
 function ButtonsEdit( {
 	attributes: { contentJustification, orientation },
@@ -55,19 +62,19 @@ function ButtonsEdit( {
 			? VERTICAL_JUSTIFY_CONTROLS
 			: HORIZONTAL_JUSTIFY_CONTROLS;
 
+	const updateJustify = useCallback(
+		( value ) => setAttributes( { contentJustification: value } ),
+		[ setAttributes ]
+	);
+
 	return (
 		<>
 			<BlockControls group="block">
 				<JustifyContentControl
 					allowedControls={ justifyControls }
 					value={ contentJustification }
-					onChange={ ( value ) =>
-						setAttributes( { contentJustification: value } )
-					}
-					popoverProps={ {
-						position: 'bottom right',
-						isAlternate: true,
-					} }
+					onChange={ updateJustify }
+					popoverProps={ POPOVER_PROPS }
 				/>
 			</BlockControls>
 			<div { ...innerBlocksProps } />

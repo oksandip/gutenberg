@@ -7,7 +7,7 @@ import classnames from 'classnames';
  * WordPress dependencies
  */
 import { __ } from '@wordpress/i18n';
-import { useCallback, useState, useRef } from '@wordpress/element';
+import { useCallback, useState, useRef, useMemo } from '@wordpress/element';
 import {
 	Button,
 	ButtonGroup,
@@ -191,51 +191,68 @@ function ButtonEdit( props ) {
 		[ rel, setAttributes ]
 	);
 
-	const setButtonText = ( newText ) => {
-		// Remove anchor tags from button text content.
-		setAttributes( { text: newText.replace( /<\/?a[^>]*>/g, '' ) } );
-	};
+	const setButtonText = useCallback(
+		( newText ) => {
+			// Remove anchor tags from button text content.
+			setAttributes( { text: newText.replace( /<\/?a[^>]*>/g, '' ) } );
+		},
+		[ setAttributes ]
+	);
 
 	const borderRadius = style?.border?.radius;
 	const colorProps = useColorProps( attributes );
 	const ref = useRef();
 	const blockProps = useBlockProps( { ref } );
 
+	const classes = useMemo(
+		() =>
+			classnames( blockProps.className, {
+				[ `has-custom-width wp-block-button__width-${ width }` ]: width,
+				[ `has-custom-font-size` ]: blockProps.style.fontSize,
+			} ),
+		[ width, blockProps.style.fontSize ]
+	);
+	const richTextClasses = useMemo(
+		() =>
+			classnames(
+				className,
+				'wp-block-button__link',
+				colorProps.className,
+				{
+					'no-border-radius': borderRadius === 0,
+				}
+			),
+		[ className, colorProps.className, borderRadius ]
+	);
+	const richtextStyle = useMemo(
+		() => ( {
+			borderRadius: borderRadius ? borderRadius + 'px' : undefined,
+			...colorProps.style,
+		} ),
+		[ borderRadius, colorProps.style ]
+	);
+
+	const onButtonSplit = useCallback(
+		( value ) =>
+			createBlock( 'core/button', {
+				...attributes,
+				text: value,
+			} ),
+		[ createBlock, attributes ]
+	);
+
 	return (
 		<>
-			<div
-				{ ...blockProps }
-				className={ classnames( blockProps.className, {
-					[ `has-custom-width wp-block-button__width-${ width }` ]: width,
-					[ `has-custom-font-size` ]: blockProps.style.fontSize,
-				} ) }
-			>
+			<div { ...blockProps } className={ classes }>
 				<RichText
 					aria-label={ __( 'Button text' ) }
 					placeholder={ placeholder || __( 'Add text…' ) }
 					value={ text }
-					onChange={ ( value ) => setButtonText( value ) }
+					onChange={ setButtonText }
 					withoutInteractiveFormatting
-					className={ classnames(
-						className,
-						'wp-block-button__link',
-						colorProps.className,
-						{
-							'no-border-radius': borderRadius === 0,
-						}
-					) }
-					style={ {
-						borderRadius: borderRadius
-							? borderRadius + 'px'
-							: undefined,
-						...colorProps.style,
-					} }
-					onSplit={ ( value ) =>
-						createBlock( 'core/button', {
-							...attributes,
-							text: value,
-						} )
-					}
+					className={ richTextClasses }
+					style={ richtextStyle }
+					onSplit={ onButtonSplit }
 					onReplace={ onReplace }
 					onMerge={ mergeBlocks }
 					identifier="text"
