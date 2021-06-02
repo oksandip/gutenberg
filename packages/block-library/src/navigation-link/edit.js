@@ -36,6 +36,8 @@ import {
 	useState,
 	useEffect,
 	useRef,
+	useCallback,
+	useMemo,
 	createInterpolateElement,
 } from '@wordpress/element';
 import { placeCaretAtHorizontalEdge } from '@wordpress/dom';
@@ -49,6 +51,12 @@ import { ItemSubmenuIcon } from './icons';
 import { name } from './block.json';
 
 const ALLOWED_BLOCKS = [ 'core/navigation-link', 'core/spacer' ];
+const ALLOWED_FORMATS = [
+	'core/bold',
+	'core/italic',
+	'core/image',
+	'core/strikethrough',
+];
 
 const MAX_NESTING = 5;
 
@@ -448,24 +456,95 @@ export default function NavigationLinkEdit( {
 			/* translators: label for missing values in navigation link block */
 			missingText = __( 'Add a link' );
 	}
+	const updateLinkDescription = useCallback(
+		( descriptionValue ) => {
+			setAttributes( { description: descriptionValue } );
+		},
+		[ setAttributes ]
+	);
+	const updateTitle = useCallback(
+		( titleValue ) => {
+			setAttributes( { title: titleValue } );
+		},
+		[ setAttributes ]
+	);
+	const updateRel = useCallback(
+		( relValue ) => {
+			setAttributes( { rel: relValue } );
+		},
+		[ setAttributes ]
+	);
+	const updateLabel = useCallback(
+		( labelValue ) => setAttributes( { label: labelValue } ),
+		[ setAttributes ]
+	);
+	const splitAtEnd = useCallback(
+		() => insertBlocksAfter( createBlock( 'core/navigation-link' ) ),
+		[ insertBlocksAfter, createBlock ]
+	);
+	const setLinkOpenIfUrl = useCallback( () => {
+		if ( ! url ) {
+			setIsLinkOpen( true );
+		}
+	}, [ url ] );
+	const setLinkOpen = useCallback( () => setIsLinkOpen( true ), [] );
+	const setLinkClosed = useCallback( () => setIsLinkOpen( false ), [] );
+	const shortcuts = useMemo(
+		() => ( {
+			[ rawShortcut.primary( 'k' ) ]: () => setIsLinkOpen( true ),
+		} ),
+		[ setLinkOpen ]
+	);
+	const enterShortcut = useMemo(
+		() => ( {
+			enter: () => isSelected && setIsLinkOpen( true ),
+		} ),
+		[ isSelected ]
+	);
+	const escShortcut = useMemo(
+		() => ( {
+			escape: () => setIsLinkOpen( false ),
+		} ),
+		[]
+	);
+	const createLinkSuggestion = useCallback(
+		( searchTerm ) => {
+			let format;
+			if ( type === 'post' ) {
+				/* translators: %s: search term. */
+				format = __( 'Create draft post: <mark>%s</mark>' );
+			} else {
+				/* translators: %s: search term. */
+				format = __( 'Create draft page: <mark>%s</mark>' );
+			}
+			return createInterpolateElement( sprintf( format, searchTerm ), {
+				mark: <mark />,
+			} );
+		},
+		[ createInterpolateElement ]
+	);
+
+	const updateLinkAttributes = useCallback(
+		( updatedValue ) =>
+			updateNavigationLinkBlockAttributes(
+				updatedValue,
+				setAttributes,
+				attributes
+			),
+		[ setAttributes, attributes ]
+	);
 
 	return (
 		<Fragment>
 			<BlockControls>
 				<ToolbarGroup>
-					<KeyboardShortcuts
-						bindGlobal
-						shortcuts={ {
-							[ rawShortcut.primary( 'k' ) ]: () =>
-								setIsLinkOpen( true ),
-						} }
-					/>
+					<KeyboardShortcuts bindGlobal shortcuts={ shortcuts } />
 					<ToolbarButton
 						name="link"
 						icon={ linkIcon }
 						title={ __( 'Link' ) }
 						shortcut={ displayShortcut.primary( 'k' ) }
-						onClick={ () => setIsLinkOpen( true ) }
+						onClick={ setLinkOpen }
 					/>
 					{ ! isAtMaxNesting && (
 						<ToolbarButton
@@ -481,9 +560,7 @@ export default function NavigationLinkEdit( {
 				<PanelBody title={ __( 'Link settings' ) }>
 					<TextareaControl
 						value={ description || '' }
-						onChange={ ( descriptionValue ) => {
-							setAttributes( { description: descriptionValue } );
-						} }
+						onChange={ updateLinkDescription }
 						label={ __( 'Description' ) }
 						help={ __(
 							'The description will be displayed in the menu if the current theme supports it.'
@@ -491,17 +568,13 @@ export default function NavigationLinkEdit( {
 					/>
 					<TextControl
 						value={ title || '' }
-						onChange={ ( titleValue ) => {
-							setAttributes( { title: titleValue } );
-						} }
+						onChange={ updateTitle }
 						label={ __( 'Link title' ) }
 						autoComplete="off"
 					/>
 					<TextControl
 						value={ rel || '' }
-						onChange={ ( relValue ) => {
-							setAttributes( { rel: relValue } );
-						} }
+						onChange={ updateRel }
 						label={ __( 'Link rel' ) }
 						autoComplete="off"
 					/>
@@ -513,12 +586,7 @@ export default function NavigationLinkEdit( {
 					{ /* eslint-enable */ }
 					{ ! url ? (
 						<div className="wp-block-navigation-link__placeholder-text">
-							<KeyboardShortcuts
-								shortcuts={ {
-									enter: () =>
-										isSelected && setIsLinkOpen( true ),
-								} }
-							/>
+							<KeyboardShortcuts shortcuts={ enterShortcut } />
 							{ missingText }
 						</div>
 					) : (
@@ -527,43 +595,26 @@ export default function NavigationLinkEdit( {
 							identifier="label"
 							className="wp-block-navigation-link__label"
 							value={ label }
-							onChange={ ( labelValue ) =>
-								setAttributes( { label: labelValue } )
-							}
+							onChange={ updateLabel }
 							onMerge={ mergeBlocks }
 							onReplace={ onReplace }
-							__unstableOnSplitAtEnd={ () =>
-								insertBlocksAfter(
-									createBlock( 'core/navigation-link' )
-								)
-							}
+							__unstableOnSplitAtEnd={ splitAtEnd }
 							aria-label={ __( 'Navigation link text' ) }
 							placeholder={ itemLabelPlaceholder }
 							withoutInteractiveFormatting
-							allowedFormats={ [
-								'core/bold',
-								'core/italic',
-								'core/image',
-								'core/strikethrough',
-							] }
-							onClick={ () => {
-								if ( ! url ) {
-									setIsLinkOpen( true );
-								}
-							} }
+							allowedFormats={ ALLOWED_FORMATS }
+							onClick={ setLinkOpenIfUrl }
 						/>
 					) }
 					{ isLinkOpen && (
 						<Popover
 							position="bottom center"
-							onClose={ () => setIsLinkOpen( false ) }
+							onClose={ setLinkClosed }
 							anchorRef={ listItemRef.current }
 						>
 							<KeyboardShortcuts
 								bindGlobal
-								shortcuts={ {
-									escape: () => setIsLinkOpen( false ),
-								} }
+								shortcuts={ escShortcut }
 							/>
 							<LinkControl
 								className="wp-block-navigation-link__inline-link-input"
@@ -571,37 +622,16 @@ export default function NavigationLinkEdit( {
 								showInitialSuggestions={ true }
 								withCreateSuggestion={ userCanCreate }
 								createSuggestion={ handleCreate }
-								createSuggestionButtonText={ ( searchTerm ) => {
-									let format;
-									if ( type === 'post' ) {
-										/* translators: %s: search term. */
-										format = __(
-											'Create draft post: <mark>%s</mark>'
-										);
-									} else {
-										/* translators: %s: search term. */
-										format = __(
-											'Create draft page: <mark>%s</mark>'
-										);
-									}
-									return createInterpolateElement(
-										sprintf( format, searchTerm ),
-										{ mark: <mark /> }
-									);
-								} }
+								createSuggestionButtonText={
+									createLinkSuggestion
+								}
 								noDirectEntry={ !! type }
 								noURLSuggestion={ !! type }
 								suggestionsQuery={ getSuggestionsQuery(
 									type,
 									kind
 								) }
-								onChange={ ( updatedValue ) =>
-									updateNavigationLinkBlockAttributes(
-										updatedValue,
-										setAttributes,
-										attributes
-									)
-								}
+								onChange={ updateLinkAttributes }
 							/>
 						</Popover>
 					) }
