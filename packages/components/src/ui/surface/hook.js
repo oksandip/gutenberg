@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { css, cx, ui } from '@wp-g2/styles';
+import { cx } from 'emotion';
 
 /**
  * WordPress dependencies
@@ -15,7 +15,7 @@ import { useContextSystem } from '../context';
 import * as styles from './styles';
 
 /**
- * @param {import('../context').ViewOwnProps<import('./types').Props, 'div'>} props
+ * @param {import('../context').PolymorphicComponentProps<import('./types').Props, 'div'>} props
  */
 export function useSurface( props ) {
 	const {
@@ -44,15 +44,11 @@ export function useSurface( props ) {
 		return cx(
 			styles.Surface,
 			sx.borders,
-			styles[ variant ],
-			css( {
-				[ ui.createToken( 'surfaceBackgroundSize' ) ]: ui.value.px(
-					backgroundSize
-				),
-				[ ui.createToken(
-					'surfaceBackgroundSizeDotted'
-				) ]: ui.value.px( backgroundSize - 1 ),
-			} ),
+			styles.getVariant(
+				variant,
+				`${ backgroundSize }px`,
+				`${ backgroundSize - 1 }px`
+			),
 			className
 		);
 	}, [

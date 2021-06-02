@@ -1,4 +1,9 @@
 /**
+ * External dependencies
+ */
+import classnames from 'classnames';
+
+/**
  * WordPress dependencies
  */
 import {
@@ -11,7 +16,7 @@ import {
 import { ToolbarButton, Spinner, Placeholder } from '@wordpress/components';
 import { brush as brushIcon, update as updateIcon } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';
-import { useCallback } from '@wordpress/element';
+import { useState, useCallback } from '@wordpress/element';
 import { useSelect } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 
@@ -20,16 +25,23 @@ import { store as coreStore } from '@wordpress/core-data';
  */
 import WidgetTypeSelector from './widget-type-selector';
 import InspectorCard from './inspector-card';
-import FormWrapper from './form-wrapper';
 import Form from './form';
 import Preview from './preview';
 import NoPreview from './no-preview';
-import useForm from './use-form';
+import ConvertToBlocksButton from './convert-to-blocks-button';
 
 export default function Edit( props ) {
 	const { id, idBase } = props.attributes;
+	const { isWide = false } = props;
+
+	const blockProps = useBlockProps( {
+		className: classnames( {
+			'is-wide-widget': isWide,
+		} ),
+	} );
+
 	return (
-		<div { ...useBlockProps() }>
+		<div { ...blockProps }>
 			{ ! id && ! idBase ? (
 				<Empty { ...props } />
 			) : (
@@ -76,8 +88,12 @@ function Empty( { attributes: { id, idBase }, setAttributes } ) {
 function NotEmpty( {
 	attributes: { id, idBase, instance },
 	setAttributes,
+	clientId,
 	isSelected,
+	isWide = false,
 } ) {
+	const [ hasPreview, setHasPreview ] = useState( null );
+
 	const {
 		widgetType,
 		hasResolvedWidgetType,
@@ -105,13 +121,6 @@ function NotEmpty( {
 		setAttributes( { instance: nextInstance } );
 	}, [] );
 
-	const { content, setFormData, hasPreview } = useForm( {
-		id,
-		idBase,
-		instance,
-		setInstance,
-	} );
-
 	if ( ! widgetType && hasResolvedWidgetType ) {
 		return (
 			<Placeholder
@@ -123,7 +132,7 @@ function NotEmpty( {
 		);
 	}
 
-	if ( ! hasResolvedWidgetType || hasPreview === null ) {
+	if ( ! hasResolvedWidgetType ) {
 		return (
 			<Placeholder>
 				<Spinner />
@@ -151,6 +160,15 @@ function NotEmpty( {
 				</BlockControls>
 			) }
 
+			{ idBase === 'text' && (
+				<BlockControls group="other">
+					<ConvertToBlocksButton
+						clientId={ clientId }
+						rawInstance={ instance.raw }
+					/>
+				</BlockControls>
+			) }
+
 			<InspectorControls>
 				<InspectorCard
 					name={ widgetType.name }
@@ -158,28 +176,36 @@ function NotEmpty( {
 				/>
 			</InspectorControls>
 
-			<FormWrapper
+			<Form
 				title={ widgetType.name }
 				isVisible={ mode === 'edit' }
-			>
-				<Form
-					id={ id }
-					idBase={ idBase }
-					content={ content }
-					setFormData={ setFormData }
-				/>
-			</FormWrapper>
+				id={ id }
+				idBase={ idBase }
+				instance={ instance }
+				isWide={ isWide }
+				onChangeInstance={ setInstance }
+				onChangeHasPreview={ setHasPreview }
+			/>
 
-			{ idBase &&
-				( hasPreview ? (
-					<Preview
-						idBase={ idBase }
-						instance={ instance }
-						isVisible={ mode === 'preview' }
-					/>
-				) : (
-					mode === 'preview' && <NoPreview name={ widgetType.name } />
-				) ) }
+			{ idBase && (
+				<>
+					{ hasPreview === null && mode === 'preview' && (
+						<Placeholder>
+							<Spinner />
+						</Placeholder>
+					) }
+					{ hasPreview === true && (
+						<Preview
+							idBase={ idBase }
+							instance={ instance }
+							isVisible={ mode === 'preview' }
+						/>
+					) }
+					{ hasPreview === false && mode === 'preview' && (
+						<NoPreview name={ widgetType.name } />
+					) }
+				</>
+			) }
 		</>
 	);
 }

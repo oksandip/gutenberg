@@ -127,10 +127,13 @@ const registerBlock = ( block ) => {
 		return;
 	}
 	const { metadata, settings, name } = block;
-	registerBlockType( name, {
-		...metadata,
-		...settings,
-	} );
+	registerBlockType(
+		{
+			name,
+			...metadata,
+		},
+		settings
+	);
 };
 
 /**
@@ -247,7 +250,7 @@ export const registerCoreBlocks = () => {
 		pullquote,
 		file,
 		audio,
-		devOnly( reusableBlock ),
+		reusableBlock,
 		search,
 		devOnly( embed ),
 	].forEach( registerBlock );
